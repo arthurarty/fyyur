@@ -254,12 +254,6 @@ def create_venue_submission():
   finally:
     db.session.close()
   # TODO: modify data to be the data object returned from db insertion
-
-  # on successful db insert, flash success
-  
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
   return render_template('pages/home.html')
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
@@ -445,8 +439,21 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
-  # called upon submitting the new artist listing form
-  # TODO: insert form data as a new Venue record in the db, instead
+  form_data = request.form
+  artist = Artist()
+  artist.name = form_data.get('name')
+  artist.state = form_data.get('state')
+  artist.city = form_data.get('city')
+  artist.phone = form_data.get('phone')
+  artist.image_link = form_data.get('image_link')
+  artist.genres = form_data.get('genres')
+  artist.facebook_link = form_data.get('facebook_link')
+  artist.website = form_data.get('website')
+  if form_data.get('seeking_venue') == 'y':
+    artist.seeking_venue = True
+  artist.seeking_description = form_data.get('seeking_description')
+  db.session.add(artist)
+  db.session.commit()
   # TODO: modify data to be the data object returned from db insertion
 
   # on successful db insert, flash success
