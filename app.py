@@ -26,6 +26,11 @@ migrate = Migrate(app, db)
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
+shows = db.Table('shows',
+    db.Column('artist_id', db.Integer, db.ForeignKey('Artist.id'), primary_key=True),
+    db.Column('venue_id', db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
+)
+
 
 class Venue(db.Model):
     __tablename__ = 'Venue'
@@ -63,11 +68,6 @@ class Artist(db.Model):
     shows = db.relationship('Shows', secondary=shows, lazy='subquery',
         backref=db.backref('artist', lazy=True))
 
-
-shows = db.Table('shows',
-    db.Column('artist_id', db.Integer, db.ForeignKey('Artist.id'), primary_key=True),
-    db.Column('venue_id', db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
-)
 #----------------------------------------------------------------------------#
 # Filters.
 #----------------------------------------------------------------------------#
