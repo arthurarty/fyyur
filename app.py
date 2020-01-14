@@ -5,7 +5,7 @@
 import json
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask import Flask, render_template, request, Response, flash, redirect, url_for, Response
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -26,7 +26,7 @@ migrate = Migrate(app, db)
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
-shows = db.Table('shows',
+shows = db.Table('Shows',
     db.Column('artist_id', db.Integer, db.ForeignKey('Artist.id'), primary_key=True),
     db.Column('venue_id', db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
 )
@@ -47,7 +47,7 @@ class Venue(db.Model):
     website = db.Column(db.String(250), nullable=False)
     seeking_talent = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Shows', secondary=shows, lazy='subquery',
+    artists = db.relationship('Artist', secondary=shows, lazy='subquery',
         backref=db.backref('venue', lazy=True))
 
 
@@ -65,7 +65,7 @@ class Artist(db.Model):
     website = db.Column(db.String(250), nullable=False)
     seeking_venue = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Shows', secondary=shows, lazy='subquery',
+    venues = db.relationship('Venue', secondary=shows, lazy='subquery',
         backref=db.backref('artist', lazy=True))
 
 #----------------------------------------------------------------------------#
@@ -230,7 +230,19 @@ def create_venue_form():
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
-  # TODO: insert form data as a new Venue record in the db, instead
+  data = request.form
+  venue = Venue()
+  venue.state = data['state']
+  venue.name = data['name']
+  venue.city = data['city']
+  venue.address = data['address']
+  venue.phone = data['phone']
+  venue.image_link = data['image_link']
+  venue.genres = data['genres']
+  venue.facebook_link = data['facebook_link']
+  venue.website = data.get('website')
+  db.session.add(venue)
+  db.session.commit()
   # TODO: modify data to be the data object returned from db insertion
 
   # on successful db insert, flash success
