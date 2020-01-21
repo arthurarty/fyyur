@@ -26,22 +26,36 @@ migrate = Migrate(app, db)
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
+genres_venues = db.Table(
+  'genres_venues',
+  db.Column('venue_id', db.Integer, db.ForeignKey('Venue.id'), primary_key=True),
+  db.Column('genre_id', db.Integer, db.ForeignKey('Genre.id'), primary_key=True)
+)
+
+
+genres_artists = db.Table(
+  'genres_artists',
+  db.Column('artist_id', db.Integer, db.ForeignKey('Artist.id'), primary_key=True),
+  db.Column('genre_id', db.Integer, db.ForeignKey('Genre.id'), primary_key=True)
+)
+
 class Venue(db.Model):
     __tablename__ = 'Venue'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
     website = db.Column(db.String(250), nullable=True)
     seeking_talent = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
     shows = db.relationship('Show', backref='venue', lazy=True)
+    city_id = db.Column(
+      db.Integer, db.ForeignKey('City.id'), nullable=False)
+    genres = db.relationship(
+      'Genre', secondary=genres_venues, backref=db.backref('venues', lazy=True))
 
 
 class Artist(db.Model):
@@ -49,16 +63,17 @@ class Artist(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website = db.Column(db.String(250), nullable=True)
     seeking_venue = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
     shows = db.relationship('Show', backref='artist', lazy=True)
+    city_id = db.Column(
+      db.Integer, db.ForeignKey('City.id'), nullable=False)
+    genres = db.relationship(
+      'Genre', secondary=genres_artists, backref=db.backref('artists', lazy=True))
 
 
 class Show(db.Model):
@@ -71,7 +86,33 @@ class Show(db.Model):
         nullable=False)
   start_time = db.Column(db.DateTime, nullable=False)
 
-#----------------------------------------------------------------------------#
+
+class State(db.Model):
+  __tablename__ = 'State'
+
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String(2), nullable=False, unique=True)
+  cities = db.relationship('City', backref='state', lazy=True)
+
+
+class City(db.Model):
+  __tablename__ = 'City'
+
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String(100), nullable=False, unique=True)
+  state_id = db.Column(
+    db.Integer, db.ForeignKey('State.id'), nullable=False)
+  venues = db.relationship('Venue', backref='city', lazy=True)
+  artists = db.relationship('Artist', backref='city', lazy=True)
+
+
+class Genre(db.Model):
+  __tablename__ = 'Genre'
+
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String(100), nullable=False, unique=True)
+#----------------------
+# ------------------------------------------------------#
 # Filters.
 #----------------------------------------------------------------------------#
 
@@ -234,20 +275,30 @@ def create_venue_form():
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
   form_data = request.form
+  state_name =  form_data.get('state')
+  state = State.query.filter_by(name=state_name).first()
+  city_name = form_data.get('city')
+  city = City.query.filter(City.name.ilike(f'{city_name}')).first()
+  genres_list = form_data.getlist('genres')
+  genres_objs = [Genre.query.filter_by(name=genre).first() for genre in genres_list]
+
   try:
     venue = Venue()
-    venue.state = form_data.get('state', 'State')
     venue.name = form_data.get('name', 'Name')
-    venue.city = form_data.get('city', 'City')
     venue.address = form_data.get('address' , 'Address')
     venue.phone = form_data.get('phone', '0000-0000-0000')
     venue.image_link = form_data.get('image_link', 'example.com')
-    venue.genres = form_data.get('genres')
     venue.facebook_link = form_data.get('facebook_link', 'https://facebook.com')
     venue.website = form_data.get('website', 'example.com')
     if form_data.get('seeking_talent') == 'y':
       venue.seeking_talent = True
     venue.seeking_description = form_data.get('seeking_description')
+    if city is None:
+      new_city = City(name=city_name, state=state)
+      venue.city = new_city
+    else:
+      venue.city = city
+    venue.genres = genres_objs
     db.session.add(venue)
     db.session.commit()
     flash('Venue ' + form_data['name'] + ' was successfully listed!')
@@ -445,26 +496,36 @@ def create_artist_form():
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
   form_data = request.form
-  artist = Artist()
-  artist.name = form_data.get('name')
-  artist.state = form_data.get('state')
-  artist.city = form_data.get('city')
-  artist.phone = form_data.get('phone')
-  artist.image_link = form_data.get('image_link')
-  artist.genres = form_data.get('genres')
-  artist.facebook_link = form_data.get('facebook_link')
-  artist.website = form_data.get('website')
-  if form_data.get('seeking_venue') == 'y':
-    artist.seeking_venue = True
-  artist.seeking_description = form_data.get('seeking_description')
-  db.session.add(artist)
-  db.session.commit()
-  # TODO: modify data to be the data object returned from db insertion
-
-  # on successful db insert, flash success
-  flash('Artist ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
+  state_name =  form_data.get('state')
+  state = State.query.filter_by(name=state_name).first()
+  city_name = form_data.get('city')
+  city = City.query.filter(City.name.ilike(f'{city_name}')).first()
+  genres_list = form_data.getlist('genres')
+  genres_objs = [Genre.query.filter_by(name=genre).first() for genre in genres_list]
+  try:
+    artist = Artist()
+    artist.name = form_data.get('name')
+    artist.phone = form_data.get('phone')
+    artist.image_link = form_data.get('image_link')
+    artist.facebook_link = form_data.get('facebook_link')
+    artist.website = form_data.get('website')
+    if form_data.get('seeking_venue') == 'y':
+      artist.seeking_venue = True
+    artist.seeking_description = form_data.get('seeking_description')
+    if city is None:
+      new_city = City(name=city_name, state=state)
+      artist.city = new_city
+    else:
+      artist.city = city
+    artist.genres = genres_objs
+    db.session.add(artist)
+    db.session.commit()
+    flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  except:
+    flash('An error occurred. Artist ' + form_data.name + ' could not be listed.')
+    db.session.rollback()
+  finally:
+    db.session.close()
   return render_template('pages/home.html')
 
 
