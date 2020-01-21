@@ -26,12 +26,6 @@ migrate = Migrate(app, db)
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
-shows = db.Table('Shows',
-    db.Column('artist_id', db.Integer, db.ForeignKey('Artist.id'), primary_key=True),
-    db.Column('venue_id', db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
-)
-
-
 class Venue(db.Model):
     __tablename__ = 'Venue'
 
@@ -44,11 +38,10 @@ class Venue(db.Model):
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     genres = db.Column(db.String(120))
-    website = db.Column(db.String(250), nullable=False)
+    website = db.Column(db.String(250), nullable=True)
     seeking_talent = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
-    artists = db.relationship('Artist', secondary=shows, lazy='subquery',
-        backref=db.backref('venue', lazy=True))
+    shows = db.relationship('Show', backref='venue', lazy=True)
 
 
 class Artist(db.Model):
@@ -62,11 +55,21 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(250), nullable=False)
+    website = db.Column(db.String(250), nullable=True)
     seeking_venue = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
-    venues = db.relationship('Venue', secondary=shows, lazy='subquery',
-        backref=db.backref('artist', lazy=True))
+    shows = db.relationship('Show', backref='artist', lazy=True)
+
+
+class Show(db.Model):
+  __tablename__ = 'Show'
+
+  id = db.Column(db.Integer, primary_key=True)
+  artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'),
+        nullable=False)
+  venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'),
+        nullable=False)
+  start_time = db.Column(db.DateTime, nullable=False)
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -119,7 +122,7 @@ def venues():
       "num_upcoming_shows": 0,
     }]
   }]
-  return render_template('pages/venues.html', areas=data);
+  return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -264,6 +267,8 @@ def delete_venue(venue_id):
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
   return None
+
+
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -517,14 +522,25 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
-  # called to create new shows in the db, upon submitting new show listing form
-  # TODO: insert form data as a new Show record in the db, instead
-
-  # on successful db insert, flash success
-  flash('Show was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Show could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+  form_data = request.form
+  try:
+    artist_id = form_data.get('artist_id')
+    venue_id = form_data.get('venue_id')
+    start_time = form_data.get('start_time')
+    venue = Venue.query.filter_by(id=venue_id).first()
+    artist = Artist.query.filter_by(id=artist_id).first()
+    if venue is not None and artist is not None:
+      show = Show(artist=artist, venue=venue, start_time=start_time)
+      db.session.add(show)
+      db.session.commit()
+      flash('Show was successfully listed!')
+    else:
+      flash('Venue or Artist does not exist.')
+  except:
+    flash('An error occurred. Show could not be listed.')
+    db.session.rollback()
+  finally:
+    db.session.close()
   return render_template('pages/home.html')
 
 @app.errorhandler(404)
