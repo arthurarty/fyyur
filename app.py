@@ -13,6 +13,7 @@ from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
+from datetime import datetime
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -56,6 +57,24 @@ class Venue(db.Model):
       db.Integer, db.ForeignKey('City.id'), nullable=False)
     genres = db.relationship(
       'Genre', secondary=genres_venues, backref=db.backref('venues', lazy=True))
+
+    @property
+    def upcoming_shows(self):
+        """
+        Returns a list of upcoming shows
+        """
+        current_time = datetime.now()
+        shows_list = self.shows
+        upcoming_shows = [show for show in shows_list if show.start_time > current_time]
+        return upcoming_shows
+
+    @property
+    def num_upcoming_shows(self):
+        """
+        Returns the number of upcoming shows
+        """
+        upcoming_shows = self.upcoming_shows
+        return len(upcoming_shows)
 
 
 class Artist(db.Model):
@@ -140,30 +159,17 @@ def index():
 
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
-  #       num_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
+  city_list = City.query.all()
+  data = []
+  for city in city_list:
+    city_dict = {
+      'city': city.name,
+      'state': city.state.name,
+      'venues': city.venues
+    }
+    data.append(city_dict)
   return render_template('pages/venues.html', areas=data)
+
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -179,6 +185,7 @@ def search_venues():
     }]
   }
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
