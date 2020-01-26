@@ -406,50 +406,34 @@ def search_artists():
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
-  artist = Artist.query.filter_by(id=artist_id).first()
-  if artist is not None:
-    artist_dict = {
-        'id': artist.id,
-        'name': artist.name,
-        'genres': artist.genres,
-        'city': artist.city.name,
-        'state': artist.city.state.name,
-        'phone': artist.phone,
-        'website': artist.website,
-        'facebook_link': artist.facebook_link,
-        'seeking_venue': artist.seeking_venue,
-        'seeking_description': artist.seeking_description,
-        'image_link': artist.image_link,
-        'past_shows': artist.past_shows,
-        'upcoming_shows': artist.upcoming_shows,
-        'past_shows_count': artist.past_shows_count,
-        'upcoming_shows_count': artist.upcoming_shows_count,
-    }
-    return render_template('pages/show_artist.html', artist=artist_dict)
-  else:
-    return render_template('errors/404.html'), 404
+  artist = Artist.query.filter_by(id=artist_id).first_or_404()
+  artist_dict = {
+      'id': artist.id,
+      'name': artist.name,
+      'genres': artist.genres,
+      'city': artist.city.name,
+      'state': artist.city.state.name,
+      'phone': artist.phone,
+      'website': artist.website,
+      'facebook_link': artist.facebook_link,
+      'seeking_venue': artist.seeking_venue,
+      'seeking_description': artist.seeking_description,
+      'image_link': artist.image_link,
+      'past_shows': artist.past_shows,
+      'upcoming_shows': artist.upcoming_shows,
+      'past_shows_count': artist.past_shows_count,
+      'upcoming_shows_count': artist.upcoming_shows_count,
+  }
+  return render_template('pages/show_artist.html', artist=artist_dict)
 
 #  Update
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
   form = ArtistForm()
-
-  artist={
-    "id": 4,
-    "name": "Guns N Petals",
-    "genres": ["Rock n Roll"],
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "326-123-5000",
-    "website": "https://www.gunsnpetalsband.com",
-    "facebook_link": "https://www.facebook.com/GunsNPetals",
-    "seeking_venue": True,
-    "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
-    "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
-  }
-  # TODO: populate form with fields from artist with ID <artist_id>
+  artist = Artist.query.filter_by(id=artist_id).first_or_404()
   return render_template('forms/edit_artist.html', form=form, artist=artist)
+
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
