@@ -5,7 +5,7 @@
 import json
 import dateutil.parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for, Response
+from flask import Flask, render_template, request, Response, flash, redirect, url_for, Response, jsonify
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
@@ -52,7 +52,7 @@ class Venue(db.Model):
     website = db.Column(db.String(250), nullable=True)
     seeking_talent = db.Column(db.Boolean(), default=False, nullable=True)
     seeking_description =  db.Column(db.String(500), nullable=True)
-    shows = db.relationship('Show', backref='venue', lazy=True)
+    shows = db.relationship('Show', backref='venue', lazy=True, cascade="all, delete-orphan")
     city_id = db.Column(
       db.Integer, db.ForeignKey('City.id'), nullable=False)
     genres = db.relationship(
@@ -65,7 +65,7 @@ class Venue(db.Model):
         """
         current_time = datetime.now()
         shows_list = self.shows
-        upcoming_shows = [show for show in shows_list if show.start_time > current_time]
+        upcoming_shows = [show for show in shows_list if show.start_time >= current_time]
         upcoming_shows_list = []
         for show in upcoming_shows:
           show_dict = {
@@ -84,7 +84,7 @@ class Venue(db.Model):
         """
         upcoming_shows = self.upcoming_shows
         return len(upcoming_shows)
-    
+  
     @property
     def past_shows(self):
         """
@@ -296,7 +296,7 @@ def show_venue(venue_id):
     "image_link": venue.image_link,
     "past_shows": venue.past_shows,
     "upcoming_shows": venue.upcoming_shows,
-    "past_shows_count": 1,
+    "past_shows_count": venue.past_shows_count,
     "upcoming_shows_count": venue.num_upcoming_shows,
   }
   return render_template('pages/show_venue.html', venue=data)
@@ -346,15 +346,18 @@ def create_venue_submission():
     db.session.close()
   return render_template('pages/home.html')
 
+
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
-  # TODO: Complete this endpoint for taking a venue_id, and using
-  # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
-
-  # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-  # clicking that button delete it from the db then redirect the user to the homepage
-  return None
-
+  venue = Venue.query.filter_by(id=venue_id).first_or_404()
+  try:
+    db.session.delete(venue)
+    db.session.commit()
+  except:
+    db.session.rollback()
+  finally:
+    db.session.close()
+  return jsonify({'success': True})
 
 
 #  Artists
