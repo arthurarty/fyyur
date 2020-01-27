@@ -74,6 +74,20 @@
 		{% endfor %}
 	</div>
 </section>
-
+<button class="btn btn-danger" id="deleteVenue" data-id="{{ venue.id }}">Delete venue</button>
+<script>
+	const deleteButton = document.getElementById('deleteVenue');
+	deleteButton.onclick = function(e) {
+		const venueId = e.target.dataset['id'];
+		console.log('Delete method called');
+		fetch(`/venues/${venueId}`, {
+			method: 'DELETE',
+		}).then(function (response){
+			if (response.status == 200) {
+				window.location.replace("/");
+			}
+		})
+	}
+</script>
 {% endblock %}
 
