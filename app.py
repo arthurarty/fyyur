@@ -260,18 +260,13 @@ def venues():
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
-  # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
-  # seach for Hop should return "The Musical Hop".
-  # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+  search_term = request.form.get('search_term')
+  venues = Venue.query.filter(Venue.name.ilike(f'%{search_term}%')).all()
   response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
+    "count": len(venues),
+    "data": venues,
   }
-  return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+  return render_template('pages/search_venues.html', results=response, search_term=search_term)
 
 
 @app.route('/venues/<int:venue_id>')
@@ -454,7 +449,7 @@ def edit_venue(venue_id):
 def edit_venue_submission(venue_id):
   venue = Venue.query.filter_by(id=venue_id).first_or_404()
   data = request.form
-  
+
   state = State.query.filter_by(name=data.get('state')).first()
   city = City.query.filter(City.name.ilike(f"{data.get('city')}")).first()
   if city is None:
