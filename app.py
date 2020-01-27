@@ -14,6 +14,7 @@ from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -42,7 +43,9 @@ genres_artists = db.Table(
 
 class Venue(db.Model):
     __tablename__ = 'Venue'
-
+    __table_args__ = (
+      db.UniqueConstraint('name', 'address', 'city_id', name='unique_venue'),
+    ) # a venue is unique basing on its name and address
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     address = db.Column(db.String(120))
@@ -117,8 +120,8 @@ class Artist(db.Model):
     __tablename__ = 'Artist'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    phone = db.Column(db.String(120))
+    name = db.Column(db.String, unique=True)
+    phone = db.Column(db.String(120), unique=True)
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website = db.Column(db.String(250), nullable=True)
@@ -185,7 +188,9 @@ class Artist(db.Model):
 
 class Show(db.Model):
   __tablename__ = 'Show'
-
+  __table_args__ = (
+    db.UniqueConstraint('artist_id', 'venue_id', 'start_time', name='unique_show'),
+  )
   id = db.Column(db.Integer, primary_key=True)
   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'),
         nullable=False)
@@ -339,6 +344,9 @@ def create_venue_submission():
     db.session.add(venue)
     db.session.commit()
     flash('Venue ' + form_data['name'] + ' was successfully listed!')
+  except IntegrityError:
+    flash('An error occurred. Venue ' + form_data['name'] + ' already exits!.')
+    db.session.rollback()
   except:
     flash('An error occurred. Venue ' + form_data['name'] + ' could not be listed.')
     db.session.rollback()
@@ -507,25 +515,31 @@ def create_artist_submission():
   city = City.query.filter(City.name.ilike(f'{city_name}')).first()
   genres_list = form_data.getlist('genres')
   genres_objs = [Genre.query.filter_by(name=genre).first() for genre in genres_list]
+
+  artist = Artist()
+  artist.name = form_data.get('name')
+  artist.phone = form_data.get('phone')
+  artist.image_link = form_data.get('image_link')
+  artist.facebook_link = form_data.get('facebook_link')
+  artist.website = form_data.get('website')
+
+  if form_data.get('seeking_venue') == 'y':
+    artist.seeking_venue = True
+  artist.seeking_description = form_data.get('seeking_description')
+  if city is None:
+    new_city = City(name=city_name, state=state)
+    artist.city = new_city
+  else:
+    artist.city = city
+  artist.genres = genres_objs
+
   try:
-    artist = Artist()
-    artist.name = form_data.get('name')
-    artist.phone = form_data.get('phone')
-    artist.image_link = form_data.get('image_link')
-    artist.facebook_link = form_data.get('facebook_link')
-    artist.website = form_data.get('website')
-    if form_data.get('seeking_venue') == 'y':
-      artist.seeking_venue = True
-    artist.seeking_description = form_data.get('seeking_description')
-    if city is None:
-      new_city = City(name=city_name, state=state)
-      artist.city = new_city
-    else:
-      artist.city = city
-    artist.genres = genres_objs
     db.session.add(artist)
     db.session.commit()
     flash('Artist ' + request.form['name'] + ' was successfully listed!')
+  except IntegrityError:
+    flash('An error occurred. Artist ' + form_data['name'] + ' already exits!.')
+    db.session.rollback()
   except:
     flash('An error occurred. Artist ' + form_data.name + ' could not be listed.')
     db.session.rollback()
@@ -575,6 +589,9 @@ def create_show_submission():
       flash('Show was successfully listed!')
     else:
       flash('Venue or Artist does not exist.')
+  except IntegrityError:
+    flash('An error occurred. Show already exits!.')
+    db.session.rollback()
   except:
     flash('An error occurred. Show could not be listed.')
     db.session.rollback()
